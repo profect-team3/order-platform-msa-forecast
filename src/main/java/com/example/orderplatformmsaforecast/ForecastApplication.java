@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class OrderPlatformMsaForecastApplication {
+public class ForecastApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(OrderPlatformMsaForecastApplication.class, args);
+		SpringApplication.run(ForecastApplication.class, args);
 	}
 
 }
