@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: order-platform-msa-forecast
+
+
+
+server:
+  port: 8094
