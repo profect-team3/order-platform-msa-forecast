@@ -18,34 +18,11 @@ ext {
 	set('springCloudVersion', "2025.0.0")
 }
 
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
-bootJar {
-    mainClass = 'app.ForecastApplication'
-}
-
-bootRun {
-    mainClass = 'app.ForecastApplication'
-}
-
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	
-	// security
-	implementation files('libs/msa-common-util-1.0.3-plain.jar')
-	implementation "org.springframework.boot:spring-boot-starter-security"
-	implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
 }
 
 dependencyManagement {

@@ -1,0 +1,72 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+
+group = 'goorm.delivery'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+
+dependencies {
+    // core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // db
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    annotationProcessor "jakarta.annotation:jakarta.annotation-api"
+    annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+    runtimeOnly   "org.postgresql:postgresql"
+
+    // security
+    implementation files("libs/msa-common-util-1.0.2-plain.jar")
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
+
+    // docs
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+    // lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'com.h2database:h2'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2'
+
+    //Health Check
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+
+}
+
+clean {
+    delete file('src/main/generated')
+}
+
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named("bootJar"){
+    archiveFileName.set("application.jar")
+}
+
