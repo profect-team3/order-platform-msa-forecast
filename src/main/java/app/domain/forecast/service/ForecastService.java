@@ -1,39 +1,97 @@
 package app.domain.forecast.service;
 
-import app.commonUtil.security.TokenPrincipalParser;
+import app.commonUtil.apiPayload.ApiResponse;
 import app.domain.forecast.client.FastApiClient;
-import app.domain.forecast.model.dto.request.ForecastRequest;
-import app.domain.forecast.model.dto.response.ForecastResponse;
+import app.domain.forecast.client.OrderInternalApiClient;
+import app.domain.forecast.document.ForecastPrediction;
+import app.domain.forecast.model.dto.request.FastApiRequest;
+import app.domain.forecast.model.dto.response.FastApiResponse;
+import app.domain.forecast.model.dto.response.ForecastAnalyticsResponse;
+import app.domain.forecast.model.dto.response.OrderServiceStoreOrderInfo;
+import app.domain.forecast.repository.ForecastPredictionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
 public class ForecastService {
 
-    private final TokenPrincipalParser tokenPrincipalParser;
     private final FastApiClient fastApiClient;
+    private final ForecastPredictionRepository forecastPredictionRepository;
+    private final OrderInternalApiClient orderInternalApiClient;
 
-    public ForecastResponse generateDescription(Authentication authentication) {
-        // 사용자 정보 추출
-        String userIdStr = tokenPrincipalParser.getUserId(authentication);
-        Long userId = Long.parseLong(userIdStr);
+    public ForecastAnalyticsResponse getForecastAndAnalytics(String storeId, int predictionLength, boolean fineTune) {
+        // 1. Get forecast from FastAPI
+        FastApiRequest request = FastApiRequest.builder()
+                .storeId(storeId)
+                .predictionLength(predictionLength)
+                .fineTune(fineTune)
+                .build();
+        FastApiResponse forecastResponse = fastApiClient.predict(request);
 
-        // TODO: 카프카로부터 최신 주문 기록을 받는 로직을 구현해야 함.
-        // 어떤 토픽을 구독할지, 메시지 역직렬화 방식, 그리고 메시지 처리 로직에 대한 고려가 필요함.
-        List<ForecastRequest.OrderRecord> orderRecords = List.of(); // 임시로 빈 리스트
+        // 2. Save forecast to MongoDB
+        List<ForecastPrediction> predictionsToSave = forecastResponse.getPredictions().stream()
+                .map(prediction -> ForecastPrediction.builder()
+                        .storeId(forecastResponse.getStoreId())
+                        .predictionTimestamp(prediction.getTimestamp())
+                        .value(prediction.getMean())
+                        .build())
+                .collect(Collectors.toList());
+        forecastPredictionRepository.saveAll(predictionsToSave);
 
-        // 요청 객체 생성
-        ForecastRequest request = new ForecastRequest(userId, LocalDateTime.now(), orderRecords);
+        // 3. Get order data from order-service
+        ApiResponse<List<OrderServiceStoreOrderInfo>> orderInfoResponse = orderInternalApiClient.getOrdersByStoreId(UUID.fromString(storeId));
+        List<OrderServiceStoreOrderInfo> orderInfos = orderInfoResponse.result();
 
-        // FastAPI 서버에 요청
-        ForecastResponse response = fastApiClient.predict(request);
+        // 4. Process order data for analytics
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime twelveHoursAgo = now.minusHours(12);
 
-        // 응답 반환
-        return response;
+        Map<Integer, Long> hourlyRevenue = orderInfos.stream()
+                .filter(order -> order.getOrderedAt() != null && order.getOrderedAt().isAfter(twelveHoursAgo))
+                .collect(Collectors.groupingBy(
+                        order -> order.getOrderedAt().getHour(),
+                        Collectors.summingLong(OrderServiceStoreOrderInfo::getTotalPrice)
+                ));
+
+        Map<Integer, Long> hourlyOrderVolume = orderInfos.stream()
+                .filter(order -> order.getOrderedAt() != null && order.getOrderedAt().isAfter(twelveHoursAgo))
+                .collect(Collectors.groupingBy(
+                        order -> order.getOrderedAt().getHour(),
+                        Collectors.counting()
+                ));
+        
+        List<Map<String, Object>> hourlyRevenueList = hourlyRevenue.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("hour", entry.getKey());
+                    map.put("revenue", entry.getValue());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> hourlyOrderVolumeList = hourlyOrderVolume.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("hour", entry.getKey());
+                    map.put("volume", entry.getValue());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+
+        // 5. Build and return combined response
+        return ForecastAnalyticsResponse.builder()
+                .forecast(forecastResponse)
+                .hourlyRevenue(hourlyRevenueList)
+                .hourlyOrderVolume(hourlyOrderVolumeList)
+                .build();
     }
 }
