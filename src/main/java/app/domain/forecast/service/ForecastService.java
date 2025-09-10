@@ -3,12 +3,11 @@ package app.domain.forecast.service;
 import app.commonUtil.apiPayload.ApiResponse;
 import app.domain.forecast.client.FastApiClient;
 import app.domain.forecast.client.OrderInternalApiClient;
-import app.domain.forecast.document.ForecastPrediction;
+
 import app.domain.forecast.model.dto.request.FastApiRequest;
 import app.domain.forecast.model.dto.response.FastApiResponse;
 import app.domain.forecast.model.dto.response.ForecastAnalyticsResponse;
 import app.domain.forecast.model.dto.response.OrderServiceStoreOrderInfo;
-import app.domain.forecast.repository.ForecastPredictionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +23,7 @@ import java.util.HashMap;
 public class ForecastService {
 
     private final FastApiClient fastApiClient;
-    private final ForecastPredictionRepository forecastPredictionRepository;
+    
     private final OrderInternalApiClient orderInternalApiClient;
 
     public ForecastAnalyticsResponse getForecastAndAnalytics(String storeId, int predictionLength, boolean fineTune) {
@@ -35,16 +34,6 @@ public class ForecastService {
                 .fineTune(fineTune)
                 .build();
         FastApiResponse forecastResponse = fastApiClient.predict(request);
-
-        // 2. Save forecast to MongoDB
-        List<ForecastPrediction> predictionsToSave = forecastResponse.getPredictions().stream()
-                .map(prediction -> ForecastPrediction.builder()
-                        .storeId(forecastResponse.getStoreId())
-                        .predictionTimestamp(prediction.getTimestamp())
-                        .value(prediction.getMean())
-                        .build())
-                .collect(Collectors.toList());
-        forecastPredictionRepository.saveAll(predictionsToSave);
 
         // 3. Get order data from order-service
         ApiResponse<List<OrderServiceStoreOrderInfo>> orderInfoResponse = orderInternalApiClient.getOrdersByStoreId(UUID.fromString(storeId));
