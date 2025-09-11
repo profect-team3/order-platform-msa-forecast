@@ -16,6 +16,9 @@ public class FastApiRequest {
     @JsonProperty("store_id")
     private String storeId;
 
+    @JsonProperty("input_length")
+    private int inputLength;
+
     @JsonProperty("prediction_length")
     private int predictionLength;
 
