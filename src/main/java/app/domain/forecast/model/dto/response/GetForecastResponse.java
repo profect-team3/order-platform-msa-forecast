@@ -10,7 +10,6 @@ import java.util.Map;
 @Builder
 public class GetForecastResponse {
     private String storeName;
-    private FastApiResponse forecast;
-    private List<Map<String, Object>> hourlyRevenue;
-    private List<Map<String, Object>> hourlyOrderVolume;
+    private List<Map<String, Object>> hourlySalesRevenue;
+    private List<Map<String, Object>> hourlyOrderQuantity;
 }

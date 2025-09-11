@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GetForecastRequest {
     private String storeId;
-    private int inputLength;
-    private int predictionLength;
+    private int inputHours;
+    private int predictionHours;
     private boolean fineTune;
 }

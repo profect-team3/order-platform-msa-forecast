@@ -15,14 +15,12 @@ public class FastApiResponse {
     @JsonProperty("store_id")
     private String storeId;
 
-    @JsonProperty("predictions")
-    private List<Prediction> predictions;
-
     @JsonProperty("prediction_length")
     private int predictionLength;
 
-    @JsonProperty("timestamp")
-    private String timestamp;
+    @JsonProperty("predictions")
+    private List<Prediction> predictions;
+
 
     @Getter
     @NoArgsConstructor
