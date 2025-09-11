@@ -19,7 +19,7 @@ public class ForecastController {
 
     @PostMapping
     public ResponseEntity<GetForecastResponse> getForecast(@RequestBody GetForecastRequest request) {
-        GetForecastResponse response = forecastService.getForecast(GetForecastRequest request);
+        GetForecastResponse response = forecastService.getForecast(request);
         return ResponseEntity.ok(response);
     }
 }
