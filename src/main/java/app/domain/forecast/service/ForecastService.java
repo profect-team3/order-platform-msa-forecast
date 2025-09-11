@@ -2,96 +2,101 @@ package app.domain.forecast.service;
 
 import app.commonUtil.apiPayload.ApiResponse;
 import app.domain.forecast.client.FastApiClient;
-import app.domain.forecast.client.OrderInternalApiClient;
-import app.domain.forecast.document.ForecastPrediction;
+import app.domain.forecast.client.StoreInternalApiClient;
+import app.domain.forecast.document.ForecastDocument;
 import app.domain.forecast.model.dto.request.FastApiRequest;
+import app.domain.forecast.model.dto.request.GetForecastRequest;
 import app.domain.forecast.model.dto.response.FastApiResponse;
-import app.domain.forecast.model.dto.response.ForecastAnalyticsResponse;
-import app.domain.forecast.model.dto.response.OrderServiceStoreOrderInfo;
-import app.domain.forecast.repository.ForecastPredictionRepository;
+import app.domain.forecast.model.dto.response.GetForecastResponse;
+import app.domain.forecast.model.dto.response.StoreServiceStoreInfo;
+import app.domain.forecast.model.dto.request.RealDataItem;
+import app.domain.forecast.repository.ForecastRepository;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
 public class ForecastService {
 
     private final FastApiClient fastApiClient;
-    private final ForecastPredictionRepository forecastPredictionRepository;
-    private final OrderInternalApiClient orderInternalApiClient;
+    private final ForecastRepository forecastRepository;
+    private final StoreInternalApiClient storeInternalApiClient;
 
-    public ForecastAnalyticsResponse getForecastAndAnalytics(String storeId, int predictionLength, boolean fineTune) {
-        // 1. Get forecast from FastAPI
-        FastApiRequest request = FastApiRequest.builder()
-                .storeId(storeId)
-                .predictionLength(predictionLength)
-                .fineTune(fineTune)
+    /**
+     * 전체 예측 프로세스를 조율하는 메인 메서드
+     */
+    public GetForecastResponse getForecast(GetForecastRequest request) {
+        // 1. mongoDB에서 직전 일주일 데이터를 가져옴
+        List<ForecastDocument> historicalData = fetchRealData(request.getStoreId(), request.getPredictionLength());
+
+        // 2. Store 서비스에서 가게 정보(가게 이름, 카테고리, 지역, 최소주문금액, 평점) 조회
+        StoreServiceStoreInfo storeServiceStoreInfo = fetchStoreInfo(request.getStoreId());
+
+        // 3. FastAPI 호출하여 예측 결과 받기
+        FastApiResponse fastApiResponse = callPredictingApi(request, historicalData, storeServiceStoreInfo);
+
+        // 4. 예측 결과를 DB에 저장
+        savePredictions(fastApiResponse);
+
+        // 5. 최종 응답 객체 생성 및 반환
+        return buildForecastResponse(storeServiceStoreInfo.getStoreName(), fastApiResponse);
+    }
+
+    private List<ForecastDocument> fetchRealData(String storeId, int inputLength) {
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(inputLength);
+
+        return forecastRepository.findByStoreIdAndTimestampBetween(storeId, startDate, endDate);
+    }
+
+    private StoreServiceStoreInfo fetchStoreInfo(String storeId) {
+        ApiResponse<StoreServiceStoreInfo> response = storeInternalApiClient.getStoreByKey(storeId);
+
+        return response.result();
+    }
+
+    private FastApiResponse callPredictingApi(GetForecastRequest request, List<ForecastDocument> historicalData, StoreServiceStoreInfo storeInfo) {
+        List<RealDataItem> realDataItems = historicalData.stream()
+            .map(doc -> RealDataItem.builder()
+                .timestamp(doc.getTimestamp().atStartOfDay())
+                .storeId(doc.getStoreId())
+                .categoryMain(storeInfo.getCategoryMain())
+                .categorySub(storeInfo.getCategorySub())
+                .categoryItem(storeInfo.getCategoryItem())
+                .region(storeInfo.getRegion())
+                .realOrderQuantity(doc.getRealOrderQuantity().intValue())
+                .realSalesRevenue(doc.getRealSalesRevenue().intValue())
+                .dayOfWeek(doc.getTimestamp().getDayOfWeek().getValue())
+                .hour(doc.getTimestamp().atStartOfDay().getHour())
+                .minOrderAmount(storeInfo.getMinOrderAmount())
+                .avgRating(storeInfo.getAvgRating())
+                .build())
+            .collect(Collectors.toList());
+
+
+        FastApiRequest fastApiRequest = FastApiRequest.builder()
+                .storeId(request.getStoreId())
+                .inputLength(request.getInputLength())
+                .predictionLength(request.getPredictionLength())
+                .realDataItemList(realDataItems)
                 .build();
-        FastApiResponse forecastResponse = fastApiClient.predict(request);
 
-        // 2. Save forecast to MongoDB
-        List<ForecastPrediction> predictionsToSave = forecastResponse.getPredictions().stream()
-                .map(prediction -> ForecastPrediction.builder()
-                        .storeId(forecastResponse.getStoreId())
-                        .predictionTimestamp(prediction.getTimestamp())
-                        .value(prediction.getMean())
-                        .build())
-                .collect(Collectors.toList());
-        forecastPredictionRepository.saveAll(predictionsToSave);
+        return fastApiClient.predict(fastApiRequest);
+    }
 
-        // 3. Get order data from order-service
-        ApiResponse<List<OrderServiceStoreOrderInfo>> orderInfoResponse = orderInternalApiClient.getOrdersByStoreId(UUID.fromString(storeId));
-        List<OrderServiceStoreOrderInfo> orderInfos = orderInfoResponse.result();
+    private void savePredictions(FastApiResponse response) {
 
-        // 4. Process order data for analytics
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime twelveHoursAgo = now.minusHours(12);
+    }
 
-        Map<Integer, Long> hourlyRevenue = orderInfos.stream()
-                .filter(order -> order.getOrderedAt() != null && order.getOrderedAt().isAfter(twelveHoursAgo))
-                .collect(Collectors.groupingBy(
-                        order -> order.getOrderedAt().getHour(),
-                        Collectors.summingLong(OrderServiceStoreOrderInfo::getTotalPrice)
-                ));
-
-        Map<Integer, Long> hourlyOrderVolume = orderInfos.stream()
-                .filter(order -> order.getOrderedAt() != null && order.getOrderedAt().isAfter(twelveHoursAgo))
-                .collect(Collectors.groupingBy(
-                        order -> order.getOrderedAt().getHour(),
-                        Collectors.counting()
-                ));
-        
-        List<Map<String, Object>> hourlyRevenueList = hourlyRevenue.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("hour", entry.getKey());
-                    map.put("revenue", entry.getValue());
-                    return map;
-                })
-                .collect(Collectors.toList());
-
-        List<Map<String, Object>> hourlyOrderVolumeList = hourlyOrderVolume.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("hour", entry.getKey());
-                    map.put("volume", entry.getValue());
-                    return map;
-                })
-                .collect(Collectors.toList());
-
-
-        // 5. Build and return combined response
-        return ForecastAnalyticsResponse.builder()
-                .forecast(forecastResponse)
-                .hourlyRevenue(hourlyRevenueList)
-                .hourlyOrderVolume(hourlyOrderVolumeList)
+    private GetForecastResponse buildForecastResponse(String storeName, FastApiResponse response) {
+        return GetForecastResponse.builder()
+                .storeName(storeName)
+                .forecast(response)
                 .build();
     }
+
 }

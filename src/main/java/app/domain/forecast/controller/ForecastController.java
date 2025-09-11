@@ -1,7 +1,7 @@
 package app.domain.forecast.controller;
 
 import app.domain.forecast.model.dto.request.GetForecastRequest;
-import app.domain.forecast.model.dto.response.ForecastAnalyticsResponse;
+import app.domain.forecast.model.dto.response.GetForecastResponse;
 import app.domain.forecast.service.ForecastService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +18,8 @@ public class ForecastController {
     private final ForecastService forecastService;
 
     @PostMapping
-    public ResponseEntity<ForecastAnalyticsResponse> getForecast(@RequestBody GetForecastRequest request) {
-        ForecastAnalyticsResponse response = forecastService.getForecastAndAnalytics(
-                request.getStoreId(),
-                request.getPredictionLength(),
-                request.isFineTune()
-        );
+    public ResponseEntity<GetForecastResponse> getForecast(@RequestBody GetForecastRequest request) {
+        GetForecastResponse response = forecastService.getForecast(GetForecastRequest request);
         return ResponseEntity.ok(response);
     }
 }
