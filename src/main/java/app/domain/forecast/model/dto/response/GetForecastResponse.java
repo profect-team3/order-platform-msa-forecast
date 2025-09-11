@@ -8,8 +8,8 @@ import java.util.Map;
 
 @Getter
 @Builder
-public class ForecastAnalyticsResponse {
-
+public class GetForecastResponse {
+    private String storeName;
     private FastApiResponse forecast;
     private List<Map<String, Object>> hourlyRevenue;
     private List<Map<String, Object>> hourlyOrderVolume;

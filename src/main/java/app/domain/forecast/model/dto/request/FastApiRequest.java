@@ -1,5 +1,6 @@
 package app.domain.forecast.model.dto.request;
 
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,5 @@ public class FastApiRequest {
     @JsonProperty("prediction_length")
     private int predictionLength;
 
-    @JsonProperty("fine_tune")
-    private boolean fineTune;
+    private List<PredictionDataItem> predictionDataItemList;
 }

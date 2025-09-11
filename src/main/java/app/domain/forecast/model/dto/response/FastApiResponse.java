@@ -31,7 +31,10 @@ public class FastApiResponse {
         @JsonProperty("timestamp")
         private String timestamp;
 
-        @JsonProperty("mean")
-        private double mean;
+        @JsonProperty("pred_order_quantity")
+        private int predOrderQuantity;
+
+        @JsonProperty("pred_sales_revenue")
+        private int predSalesRevenue;
     }
 }
