@@ -19,5 +19,5 @@ public class FastApiRequest {
     @JsonProperty("prediction_length")
     private int predictionLength;
 
-    private List<PredictionDataItem> predictionDataItemList;
+    private List<RealDataItem> realDataItemList;
 }
