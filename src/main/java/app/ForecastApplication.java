@@ -9,6 +9,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -34,7 +35,7 @@ public class ForecastApplication {
 			Random random = new Random();
 
 			for (int i = 0; i < totalHours; i++) {
-				LocalDateTime timestamp = now.minusHours(i + 24);
+				LocalDateTime timestamp = now.minusHours(i + 24).truncatedTo(ChronoUnit.HOURS);
 				int hour = timestamp.getHour();
 
 				// Determine base order quantity based on time of day
@@ -47,20 +48,15 @@ public class ForecastApplication {
 					baseQuantity = 5;
 				}
 
-				// Generate slightly different pred and real values
-				int predQuantity = baseQuantity + random.nextInt(5) - 2; // Fluctuation of -2 to +2
-				int realQuantity = baseQuantity + random.nextInt(5) - 2;
-				predQuantity = Math.max(0, predQuantity); // Ensure non-negative
-				realQuantity = Math.max(0, realQuantity);
+				// Generate real values
+				int realQuantity = baseQuantity + random.nextInt(5) - 2; // Fluctuation of -2 to +2
+				realQuantity = Math.max(0, realQuantity); // Ensure non-negative
 
-				int predRevenue = predQuantity * (AVG_PRICE_PER_ORDER + random.nextInt(2001) - 1000); // Price fluctuation
-				int realRevenue = realQuantity * (AVG_PRICE_PER_ORDER + random.nextInt(2001) - 1000);
+				int realRevenue = realQuantity * (AVG_PRICE_PER_ORDER + random.nextInt(2001) - 1000); // Price fluctuation
 
 				ForecastDocument doc = ForecastDocument.builder()
 						.storeId(storeId)
 						.timestamp(timestamp)
-						.predOrderQuantity(predQuantity)
-						.predSalesRevenue(predRevenue)
 						.realOrderQuantity(realQuantity)
 						.realSalesRevenue(realRevenue)
 						.build();
