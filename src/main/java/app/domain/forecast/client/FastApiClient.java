@@ -6,9 +6,9 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "fastApiClient", url = "http://localhost:8000")
+@FeignClient(name = "fastApiClient", url = "http://localhost:8099")
 public interface FastApiClient {
 
-    @PostMapping("/fastapi/predict")
+    @PostMapping("/predict")
     FastApiResponse predict(@RequestBody FastApiRequest request);
 }
