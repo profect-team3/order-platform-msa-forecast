@@ -32,16 +32,14 @@ public class ForecastService {
         // 1. mongoDB에서 직전 InputLength(시간)만큼의 데이터를 가져옴
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate = endDate.minusHours(request.getInputHours());
-        List<ForecastDocument> historicalData = forecastRepository.findByStoreIdAndTimestampBetween(request.getStoreId(), startDate, endDate);
-        System.out.println(historicalData);
+        List<ForecastDocument> forecastDocumentList = forecastRepository.findByStoreIdAndTimestampBetween(request.getStoreId(), startDate, endDate);
 
         // 2. Store 서비스에서 가게 정보(가게 이름, 카테고리, 지역, 최소주문금액, 평점) 가져옴
         ApiResponse<StoreCollection> storeResponse = storeInternalApiClient.getStoreByKey(request.getStoreId());
         StoreCollection storeCollection = storeResponse.result();
-        System.out.println(storeCollection);
 
         // 3. FastAPI 호출하여 예측 결과 받음
-        List<RealDataItem> realDataItems = historicalData.stream()
+        List<RealDataItem> realDataItems = forecastDocumentList.stream()
             .map(doc -> RealDataItem.builder()
                 .timestamp(doc.getTimestamp())
                 .storeId(doc.getStoreId())
