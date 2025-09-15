@@ -33,6 +33,6 @@ public class FastApiResponse {
         private int predOrderQuantity;
 
         @JsonProperty("pred_sales_revenue")
-        private int predSalesRevenue;
+        private Long predSalesRevenue;
     }
 }

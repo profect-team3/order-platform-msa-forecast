@@ -1,6 +1,7 @@
 package app.domain.forecast.document;
 
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.TimeSeries;
 
 import java.time.LocalDateTime;
 
+@Data
 @Getter
 @Setter
 @Builder
@@ -29,12 +31,12 @@ public class ForecastDocument {
     private Integer predOrderQuantity;
 
     @Field("pred_sales_revenue")
-    private Integer predSalesRevenue;
+    private Long predSalesRevenue;
 
     // Kafka 실제 값
     @Field("real_order_quantity")
     private Integer realOrderQuantity;
 
     @Field("real_sales_revenue")
-    private Integer realSalesRevenue;
+    private Long realSalesRevenue;
 }

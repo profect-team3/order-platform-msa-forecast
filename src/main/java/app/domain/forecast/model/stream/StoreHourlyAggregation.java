@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StoreHourlyAggregation {
-    private Long orderCount;
-    private Double totalRevenue;
+    private Integer orderCount;
+    private Long totalRevenue;
 }

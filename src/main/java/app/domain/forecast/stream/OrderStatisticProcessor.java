@@ -1,9 +1,9 @@
 package app.domain.forecast.stream;
 
-import app.domain.forecast.document.StoreHourlyStatistic;
+import app.domain.forecast.document.ForecastDocument;
 import app.domain.forecast.model.dto.kafka.OrderCreatedEvent;
 import app.domain.forecast.model.stream.StoreHourlyAggregation;
-import app.domain.forecast.repository.StoreHourlyStatisticRepository;
+import app.domain.forecast.repository.ForecastRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +33,10 @@ import java.time.ZoneId;
 public class OrderStatisticProcessor {
 
     // 데이터를 수신할 Kafka 토픽 이름
-    private static final String ORDER_CREATED_TOPIC = "order.completed.dev";
+    private static final String ORDER_CREATED_TOPIC = "dev.order.completed";
 
     // 집계된 통계 데이터를 저장하기 위한 MongoDB 리포지토리
-    private final StoreHourlyStatisticRepository statisticRepository;
+    private final ForecastRepository forecastRepository;
 
     /**
      * Spring Kafka가 자동으로 호출하여 Kafka Streams 파이프라인(토폴로지)을 구성하는 메서드입니다.
@@ -54,7 +54,13 @@ public class OrderStatisticProcessor {
 
         // 1. 소스(Source): 지정된 토픽으로부터 메시지를 읽어 KStream을 생성합니다.
         KStream<String, OrderCreatedEvent> messageStream = streamsBuilder
-                .stream(ORDER_CREATED_TOPIC, Consumed.with(Serdes.String(), orderCreatedEventSerde));
+                .stream(ORDER_CREATED_TOPIC, Consumed.with(Serdes.String(), orderCreatedEventSerde))
+                .peek((key, value) -> {
+                    System.out.println("📦 수신된 주문 이벤트:");
+                    System.out.println(" - Key: " + key);
+                    System.out.println(" - Store ID: " + value.getStoreId());
+                    System.out.println(" - Price: " + value.getTotalPrice());
+                });
 
         // 2. 처리(Process) 및 집계(Aggregate)
         messageStream
@@ -68,12 +74,12 @@ public class OrderStatisticProcessor {
                 // 윈도우 내에서 그룹화된 데이터를 집계합니다.
                 .aggregate(
                         // Initializer: 각 윈도우가 처음 시작될 때 집계 객체를 초기화합니다. (주문 수 0, 매출 0.0)
-                        () -> new StoreHourlyAggregation(0L, 0.0),
+                        () -> new StoreHourlyAggregation(0, 0L),
                         
                         // Aggregator: 새로운 메시지가 들어올 때마다 집계 로직을 수행합니다.
                         (key, event, aggregate) -> {
                             aggregate.setOrderCount(aggregate.getOrderCount() + 1); // 주문 수 1 증가
-                            aggregate.setTotalRevenue(aggregate.getTotalRevenue() + event.getPrice()); // 매출액 더하기
+                            aggregate.setTotalRevenue(aggregate.getTotalRevenue() + event.getTotalPrice().longValue()); // 매출액 더하기
                             return aggregate;
                         },
                         
@@ -89,27 +95,27 @@ public class OrderStatisticProcessor {
                 // 여기서는 집계된 통계를 MongoDB에 저장합니다.
                 .foreach((windowedKey, aggregation) -> {
                     // 윈도우 키에서 가게 ID와 윈도우 종료 시간을 추출합니다.
-                    Long storeId = Long.parseLong(windowedKey.key());
+                    String storeId = windowedKey.key();
                     Instant windowEndInstant = windowedKey.window().endTime();
                     LocalDateTime windowEnd = LocalDateTime.ofInstant(windowEndInstant, ZoneId.systemDefault());
 
                     // 해당 가게와 시간대에 대한 통계 데이터가 이미 있는지 확인합니다. (Upsert 로직)
-                    statisticRepository.findByStoreIdAndTimestamp(storeId, windowEnd)
+                    forecastRepository.findByStoreIdAndTimestamp(storeId, windowEnd)
                             .ifPresentOrElse(statistic -> {
                                 // 데이터가 이미 존재하면, 최신 집계 값으로 업데이트합니다.
                                 // (늦게 도착하는 데이터나 재처리 시 동일한 윈도우에 대한 업데이트를 위함)
                                 statistic.setRealOrderQuantity(aggregation.getOrderCount());
                                 statistic.setRealSalesRevenue(aggregation.getTotalRevenue());
-                                statisticRepository.save(statistic);
+                                forecastRepository.save(statistic);
                             }, () -> {
                                 // 데이터가 없으면, 새로운 통계 문서를 생성하여 저장합니다.
-                                StoreHourlyStatistic newStatistic = StoreHourlyStatistic.builder()
+                                ForecastDocument newStatistic = ForecastDocument.builder()
                                         .storeId(storeId)
                                         .timestamp(windowEnd)
                                         .realOrderQuantity(aggregation.getOrderCount())
                                         .realSalesRevenue(aggregation.getTotalRevenue())
                                         .build();
-                                statisticRepository.save(newStatistic);
+                                forecastRepository.save(newStatistic);
                             });
                 });
     }

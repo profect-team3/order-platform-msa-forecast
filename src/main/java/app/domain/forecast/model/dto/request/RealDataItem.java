@@ -29,7 +29,7 @@ public class RealDataItem {
 
 	private int realOrderQuantity;
 
-	private int realSalesRevenue;
+	private Long realSalesRevenue;
 
 	private int dayOfWeek;
 

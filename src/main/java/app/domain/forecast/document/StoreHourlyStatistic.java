@@ -15,7 +15,7 @@ public class StoreHourlyStatistic {
     @Id
     private String id;
 
-    private Long storeId;
+    private String storeId;
     private LocalDateTime timestamp;
 
     // Predicted values (can be populated by another process)
