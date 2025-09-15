@@ -54,13 +54,7 @@ public class OrderStatisticProcessor {
 
         // 1. 소스(Source): 지정된 토픽으로부터 메시지를 읽어 KStream을 생성합니다.
         KStream<String, OrderCreatedEvent> messageStream = streamsBuilder
-                .stream(ORDER_CREATED_TOPIC, Consumed.with(Serdes.String(), orderCreatedEventSerde))
-                .peek((key, value) -> {
-                    System.out.println("📦 수신된 주문 이벤트:");
-                    System.out.println(" - Key: " + key);
-                    System.out.println(" - Store ID: " + value.getStoreId());
-                    System.out.println(" - Price: " + value.getTotalPrice());
-                });
+                .stream(ORDER_CREATED_TOPIC, Consumed.with(Serdes.String(), orderCreatedEventSerde));
 
         // 2. 처리(Process) 및 집계(Aggregate)
         messageStream
