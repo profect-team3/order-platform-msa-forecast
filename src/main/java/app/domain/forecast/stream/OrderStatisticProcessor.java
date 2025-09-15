@@ -33,7 +33,7 @@ import java.time.ZoneId;
 public class OrderStatisticProcessor {
 
     // 데이터를 수신할 Kafka 토픽 이름
-    private static final String ORDER_CREATED_TOPIC = "order-created";
+    private static final String ORDER_CREATED_TOPIC = "order.completed.dev";
 
     // 집계된 통계 데이터를 저장하기 위한 MongoDB 리포지토리
     private final StoreHourlyStatisticRepository statisticRepository;

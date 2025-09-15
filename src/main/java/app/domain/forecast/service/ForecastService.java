@@ -2,7 +2,6 @@ package app.domain.forecast.service;
 
 import app.commonUtil.apiPayload.ApiResponse;
 import app.domain.forecast.client.FastApiClient;
-import app.domain.forecast.client.OrderInternalApiClient;
 
 import app.domain.forecast.client.StoreInternalApiClient;
 import app.domain.forecast.document.ForecastDocument;
@@ -10,8 +9,6 @@ import app.domain.forecast.model.dto.request.FastApiRequest;
 import app.domain.forecast.model.dto.request.GetForecastRequest;
 import app.domain.forecast.model.dto.request.RealDataItem;
 import app.domain.forecast.model.dto.response.FastApiResponse;
-import app.domain.forecast.model.dto.response.ForecastAnalyticsResponse;
-import app.domain.forecast.model.dto.response.OrderServiceStoreOrderInfo;
 import app.domain.forecast.model.dto.response.GetForecastResponse;
 import app.domain.forecast.model.dto.response.StoreCollection;
 import app.domain.forecast.repository.ForecastRepository;
@@ -29,8 +26,6 @@ import java.util.stream.Collectors;
 public class ForecastService {
 
     private final FastApiClient fastApiClient;
-    
-    private final OrderInternalApiClient orderInternalApiClient;
     private final ForecastRepository forecastRepository;
     private final StoreInternalApiClient storeInternalApiClient;
 
@@ -44,9 +39,6 @@ public class ForecastService {
         ApiResponse<StoreCollection> storeResponse = storeInternalApiClient.getStoreByKey(request.getStoreId());
         StoreCollection storeCollection = storeResponse.result();
 
-        // 3. Get order data from order-service
-        ApiResponse<List<OrderServiceStoreOrderInfo>> orderInfoResponse = orderInternalApiClient.getOrdersByStoreId(UUID.fromString(storeId));
-        List<OrderServiceStoreOrderInfo> orderInfos = orderInfoResponse.result();
         // 3. FastAPI 호출하여 예측 결과 받음
         List<RealDataItem> realDataItems = forecastDocumentList.stream()
             .map(doc -> RealDataItem.builder()
