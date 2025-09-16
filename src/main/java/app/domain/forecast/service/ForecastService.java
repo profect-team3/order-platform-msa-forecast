@@ -41,6 +41,7 @@ public class ForecastService {
 
         // 3. FastAPI 호출하여 예측 결과 받음
         List<RealDataItem> realDataItems = forecastDocumentList.stream()
+            .filter(doc -> doc.getRealOrderQuantity() != null && doc.getRealSalesRevenue() != null)
             .map(doc -> RealDataItem.builder()
                 .timestamp(doc.getTimestamp())
                 .storeId(doc.getStoreId())
