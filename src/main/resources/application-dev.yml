@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${OAUTH_JWKS_URI:http://localhost:8083/oauth/jwks}
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: 27017
+      database: ${MONGO_NAME:store-db}
+      username: ${MONGO_INITDB_ROOT_USERNAME:root}
+      password: ${MONGO_INITDB_ROOT_PASSWORD:profectcloud}
+      authentication-database: admin
+  kafka:
+    bootstrap-servers: localhost:9092
+    streams:
+      application-id: forecast-streams-app
+      properties:
+        # SerDes(직렬화/역직렬화) 설정
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.springframework.kafka.support.serializer.JsonSerde
+
+        # 안정성을 위한 타임아웃 설정
+        request.timeout.ms: 30000
+        session.timeout.ms: 15000
+
+        # 스트림 내부 토픽(changelog, repartition)의 복제 계수.
+        # 로컬/개발 환경에서는 1로 설정하고, 다중 브로커로 운영 환경을 구성할 경우 3으로 설정하는 것이 일반적입니다.
+        replication.factor: 1
+
+jwt:
+  audience:  ${AUTH_INTERNAL_AUDIENCE:internal-services}
