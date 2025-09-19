@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -70,13 +71,24 @@ public class ForecastService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         fastApiResponse.getPredictions().forEach(prediction -> {
             LocalDateTime timestamp = LocalDateTime.parse(prediction.getTimestamp(), formatter);
-            ForecastDocument forecastDocument = ForecastDocument.builder()
-                    .storeId(fastApiResponse.getStoreId())
-                    .timestamp(timestamp)
-                    .predOrderQuantity(prediction.getPredOrderQuantity())
-                    .predSalesRevenue(prediction.getPredSalesRevenue())
-                    .build();
-            forecastRepository.save(forecastDocument);
+            String storeId = fastApiResponse.getStoreId();
+
+            Optional<ForecastDocument> existingDocumentOpt = forecastRepository.findByStoreIdAndTimestamp(storeId, timestamp);
+
+            if (existingDocumentOpt.isPresent()) {
+                ForecastDocument existingDocument = existingDocumentOpt.get();
+                existingDocument.setPredOrderQuantity(prediction.getPredOrderQuantity());
+                existingDocument.setPredSalesRevenue(prediction.getPredSalesRevenue());
+                forecastRepository.save(existingDocument);
+            } else {
+                ForecastDocument forecastDocument = ForecastDocument.builder()
+                        .storeId(storeId)
+                        .timestamp(timestamp)
+                        .predOrderQuantity(prediction.getPredOrderQuantity())
+                        .predSalesRevenue(prediction.getPredSalesRevenue())
+                        .build();
+                forecastRepository.save(forecastDocument);
+            }
         });
 
         // 5. 최종 응답 객체 생성 및 반환
